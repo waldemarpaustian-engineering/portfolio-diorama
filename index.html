@@ -124,10 +124,10 @@
   if(!EDIT_ENABLED) document.body.classList.add('public'); // hide editor tools for visitors
   const MODEL_URL='treehouse-optimized.glb';
   const DEFAULTS=[
-    {label:'About Me',link:'about.html',  p:[-0.6935189244907043,-0.1042418108650898,-0.1742905762098368],  hw:0.36,hh:0.09},
-    {label:'Works',   link:'works.html',  p:[-0.6982880685973641,-0.19902294977780008,-0.17272462593622137],hw:0.36,hh:0.08},
-    {label:'Blog',    link:'blog.html',   p:[-0.6946366258316897,-0.2912489713929793,-0.17380577636004757], hw:0.36,hh:0.08},
-    {label:'Contact', link:'contact.html',p:[-0.696093515487947,-0.3867253317476597,-0.17356162396258187],   hw:0.34,hh:0.08},
+    {label:'About Me',link:'about.html',  p:[-0.6935189244907043,-0.1042418108650898,-0.1742905762098368],  hw:0.36,hh:0.09, nrm:[-0.248,0.034,-0.968]},
+    {label:'Works',   link:'works.html',  p:[-0.6982880685973641,-0.19902294977780008,-0.17272462593622137],hw:0.36,hh:0.08, nrm:[-0.173,-0.048,-0.984]},
+    {label:'Blog',    link:'blog.html',   p:[-0.6946366258316897,-0.2912489713929793,-0.17380577636004757], hw:0.36,hh:0.08, nrm:[-0.536,0.050,-0.843]},
+    {label:'Contact', link:'contact.html',p:[-0.696093515487947,-0.3867253317476597,-0.17356162396258187],   hw:0.34,hh:0.08, nrm:[-0.503,-0.152,-0.851]},
   ];
   const STORAGE_KEY='portfolio_areas_v1';
 
@@ -154,7 +154,7 @@
 
   // ---------- orbit ----------
   // default view aimed at the signpost (so the nav is visible on load)
-  const VIEW_THETA=-1.81, VIEW_PHI=1.02, VIEW_R=11.4;
+  const VIEW_THETA=-2.76, VIEW_PHI=1.15, VIEW_R=11.0;
   const ctrl={theta:VIEW_THETA,phi:VIEW_PHI,radius:VIEW_R,tTheta:VIEW_THETA,tPhi:VIEW_PHI,tRadius:VIEW_R,target:new THREE.Vector3(0,0,0),
     dragging:false,moved:false,lastX:0,lastY:0,downX:0,downY:0,idle:0,minPhi:0.25,maxPhi:1.5,minR:5,maxR:40};
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -208,13 +208,15 @@
     const t=new THREE.CanvasTexture(cv); t.anisotropy=MAXANISO; t.encoding=THREE.sRGBEncoding; t.needsUpdate=true; return t;
   }
   function geomFor(d){ return new THREE.PlaneGeometry(2*d.hw/modelScale, 2*d.hh/modelScale); }
-  // signs sit fixed & flat, facing the front of the diorama (the default view direction)
+  // signs sit fixed & flat on the board, each facing its real board normal (read from the model)
   const FRONT=new THREE.Vector3(Math.sin(VIEW_THETA),0,Math.cos(VIEW_THETA)).normalize();
-  function orientFixed(mesh){
-    const up=new THREE.Vector3(0,1,0);
-    const r=new THREE.Vector3().crossVectors(up,FRONT).normalize();
-    const u=new THREE.Vector3().crossVectors(FRONT,r).normalize();
-    mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r,u,FRONT));
+  function orientFixed(mesh,nrm){
+    const f = nrm ? new THREE.Vector3(nrm[0],nrm[1],nrm[2]).normalize() : FRONT.clone();
+    const up = Math.abs(f.y)>0.95 ? new THREE.Vector3(0,0,1) : new THREE.Vector3(0,1,0);
+    const r=new THREE.Vector3().crossVectors(up,f).normalize();
+    const u=new THREE.Vector3().crossVectors(f,r).normalize();
+    mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r,u,f));
+    return f;
   }
 
   function makeArea(L,data){
@@ -222,12 +224,16 @@
     const mat=new THREE.MeshStandardMaterial({map:makeTexture(d.label,d.hw,d.hh),roughness:.8,metalness:0,
       side:THREE.FrontSide,emissive:new THREE.Color('#ffc488'),emissiveIntensity:0,
       transparent:true,depthTest:false,depthWrite:false});
-    const mesh=new THREE.Mesh(geomFor(d),mat); mesh.renderOrder=999; mesh.position.copy(L); orientFixed(mesh); modelRoot.add(mesh);
-    const a={mesh,L:L.clone(),data:d,glow:0,scale:1}; areas.push(a); return a;
+    const mesh=new THREE.Mesh(geomFor(d),mat); mesh.renderOrder=999; mesh.position.copy(L); modelRoot.add(mesh);
+    const a={mesh,L:L.clone(),data:d,glow:0,scale:1,nrm:orientFixed(mesh,d.nrm)}; areas.push(a); return a;
   }
-  function placeArea(a,hit){ a.L.copy(modelRoot.worldToLocal(hit.point.clone())); a.mesh.position.copy(a.L); save(); }
+  function placeArea(a,hit){ a.L.copy(modelRoot.worldToLocal(hit.point.clone())); a.mesh.position.copy(a.L);
+    if(hit.face){ const nW=hit.face.normal.clone().applyNormalMatrix(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
+      if(nW.dot(camera.position.clone().sub(hit.point))<0) nW.negate(); // face the side you're viewing from
+      a.data.nrm=[nW.x,nW.y,nW.z]; }
+    a.nrm=orientFixed(a.mesh,a.data.nrm); save(); }
   function refreshTexture(a){ if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.map=makeTexture(a.data.label,a.data.hw,a.data.hh); a.mesh.material.needsUpdate=true; }
-  function refreshGeom(a){ a.mesh.geometry.dispose(); a.mesh.geometry=geomFor(a.data); a.mesh.position.copy(a.L); orientFixed(a.mesh); }
+  function refreshGeom(a){ a.mesh.geometry.dispose(); a.mesh.geometry=geomFor(a.data); a.mesh.position.copy(a.L); a.nrm=orientFixed(a.mesh,a.data.nrm); }
   function clearAreas(){ areas.forEach(a=>{a.mesh.geometry.dispose(); if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.dispose(); modelRoot&&modelRoot.remove(a.mesh);}); areas=[]; selected=null; hovered=null; }
 
   // ---------- editor ----------
@@ -259,8 +265,8 @@
     let tipShown=false;
     areas.forEach(a=>{
       a.mesh.getWorldPosition(_wp);
-      // show a sign only while its fixed front faces the camera (hidden when you orbit behind)
-      const facing = FRONT.dot(_sd.copy(camera.position).sub(_wp)) > 0;
+      // show a sign only while its own board-front faces the camera (hidden when you orbit behind)
+      const facing = a.nrm.dot(_sd.copy(camera.position).sub(_wp)) > 0;
       a.faceVisible=facing; a.mesh.visible=facing;
       if(!facing){ if(a===hovered)hovered=null; return; }
       const isHover=(a===hovered && !editMode), isSel=(a===selected && editMode);
@@ -293,9 +299,9 @@
   function showErr(m){ const e=$('err'); e.textContent=m; e.style.display='block'; setTimeout(()=>e.style.display='none',4000); }
 
   // ---------- persistence ----------
-  function serialize(){ return areas.map(a=>({p:[a.L.x,a.L.y,a.L.z],label:a.data.label,link:a.data.link,hw:a.data.hw,hh:a.data.hh})); }
+  function serialize(){ return areas.map(a=>({p:[a.L.x,a.L.y,a.L.z],label:a.data.label,link:a.data.link,hw:a.data.hw,hh:a.data.hh,nrm:a.data.nrm})); }
   function save(){ try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(serialize())); }catch(e){} }
-  function build(arr){ clearAreas(); arr.forEach(o=>makeArea(new THREE.Vector3(o.p[0],o.p[1],o.p[2]),{label:o.label,link:o.link,hw:o.hw,hh:o.hh})); }
+  function build(arr){ clearAreas(); arr.forEach(o=>makeArea(new THREE.Vector3(o.p[0],o.p[1],o.p[2]),{label:o.label,link:o.link,hw:o.hw,hh:o.hh,nrm:o.nrm})); }
   function restore(){ let arr=DEFAULTS; try{ const raw=localStorage.getItem(STORAGE_KEY); if(raw){const p=JSON.parse(raw); if(p&&p.length)arr=p;} }catch(e){} build(arr); }
 
   // ---------- UI ----------
