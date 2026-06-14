@@ -26,6 +26,8 @@
        border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
   .btn:hover{background:#fff}
   .btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  /* on the public site the editor tools are hidden (add ?edit to the URL to show them) */
+  body.public .tools, body.public .modetag{display:none}
 
   .intro{position:fixed;z-index:10;left:26px;bottom:24px;max-width:320px;transition:opacity .4s}
   .intro h1{font-size:clamp(22px,3.4vw,34px);line-height:1.05;letter-spacing:-.03em;font-weight:680}
@@ -118,6 +120,8 @@
 <script>
 (function(){
   const $=id=>document.getElementById(id);
+  const EDIT_ENABLED=/[?&]edit\b/.test(location.search);
+  if(!EDIT_ENABLED) document.body.classList.add('public'); // hide editor tools for visitors
   const MODEL_URL='treehouse-optimized.glb';
   const DEFAULTS=[
     {label:'About Me',link:'about.html',  p:[-0.6935189244907043,-0.1042418108650898,-0.1742905762098368],  hw:0.36,hh:0.09},
@@ -212,19 +216,22 @@
     if(hits.length){ let best=hits[0],bd=1e9; hits.forEach(h=>{const d=h.point.distanceTo(worldP); if(d<bd){bd=d;best=h;}});
       if(best.face){ nWorld=best.face.normal.clone().applyNormalMatrix(_m3.getNormalMatrix(best.object.matrixWorld)).normalize();
         if(nWorld.dot(outward)<0) nWorld.negate(); } }
-    return modelRoot.worldToLocal(worldP.clone().add(nWorld)).sub(L).normalize();
+    const ln=modelRoot.worldToLocal(worldP.clone().add(nWorld)).sub(L);
+    if(!isFinite(ln.x)||!isFinite(ln.y)||!isFinite(ln.z)||ln.lengthSq()<1e-9)
+      return modelRoot.worldToLocal(worldP.clone().add(outward)).sub(L).normalize();
+    return ln.normalize();
   }
   function worldNormalToLocal(L,nWorld){ const worldP=modelRoot.localToWorld(L.clone());
     return modelRoot.worldToLocal(worldP.add(nWorld)).sub(L).normalize(); }
   const _z=new THREE.Vector3(0,0,1);
-  function orient(mesh,L,ln){ mesh.position.copy(L).addScaledVector(ln,0.012/modelScale); mesh.quaternion.setFromUnitVectors(_z,ln.clone().normalize()); }
+  function orient(mesh,L,ln){ mesh.position.copy(L).addScaledVector(ln,0.02/modelScale); mesh.quaternion.setFromUnitVectors(_z,ln.clone().normalize()); }
   function geomFor(d){ return new THREE.PlaneGeometry(2*d.hw/modelScale, 2*d.hh/modelScale); }
 
   function makeArea(L,data,ln){
     const d=Object.assign({label:'Link',link:'',hw:0.5,hh:0.16},data);
     const normal = ln || localNormalAt(L);   // compute before adding the plate so it isn't self-hit
     const mat=new THREE.MeshStandardMaterial({map:makeTexture(d.label,d.hw,d.hh),roughness:.8,metalness:0,
-      emissive:new THREE.Color('#ffc488'),emissiveIntensity:0});
+      side:THREE.DoubleSide,emissive:new THREE.Color('#ffc488'),emissiveIntensity:0});
     const mesh=new THREE.Mesh(geomFor(d),mat); modelRoot.add(mesh);
     orient(mesh,L,normal);
     const a={mesh,L:L.clone(),ln:normal,data:d,glow:0,scale:1}; areas.push(a); return a;
