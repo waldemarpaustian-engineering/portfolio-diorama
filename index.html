@@ -124,10 +124,10 @@
   if(!EDIT_ENABLED) document.body.classList.add('public'); // hide editor tools for visitors
   const MODEL_URL='treehouse-optimized.glb';
   const DEFAULTS=[
-    {label:'About Me',link:'about.html',  p:[-0.6935189244907043,-0.1042418108650898,-0.1742905762098368],  hw:0.36,hh:0.09, nrm:[-0.248,0.034,-0.968]},
-    {label:'Works',   link:'works.html',  p:[-0.6982880685973641,-0.19902294977780008,-0.17272462593622137],hw:0.36,hh:0.08, nrm:[-0.173,-0.048,-0.984]},
-    {label:'Blog',    link:'blog.html',   p:[-0.6946366258316897,-0.2912489713929793,-0.17380577636004757], hw:0.36,hh:0.08, nrm:[-0.536,0.050,-0.843]},
-    {label:'Contact', link:'contact.html',p:[-0.696093515487947,-0.3867253317476597,-0.17356162396258187],   hw:0.34,hh:0.08, nrm:[-0.503,-0.152,-0.851]},
+    {label:'About Me',link:'about.html',  p:[-0.6935189244907043,-0.1042418108650898,-0.1742905762098368],  hw:0.36,hh:0.09, nrm:[0.248,-0.034,0.968]},
+    {label:'Works',   link:'works.html',  p:[-0.6982880685973641,-0.19902294977780008,-0.17272462593622137],hw:0.36,hh:0.08, nrm:[0.173,0.048,0.984]},
+    {label:'Blog',    link:'blog.html',   p:[-0.6946366258316897,-0.2912489713929793,-0.17380577636004757], hw:0.36,hh:0.08, nrm:[0.536,-0.050,0.843]},
+    {label:'Contact', link:'contact.html',p:[-0.696093515487947,-0.3867253317476597,-0.17356162396258187],   hw:0.34,hh:0.08, nrm:[0.503,0.152,0.851]},
   ];
   const STORAGE_KEY='portfolio_areas_v1';
 
@@ -154,7 +154,7 @@
 
   // ---------- orbit ----------
   // default view aimed at the signpost (so the nav is visible on load)
-  const VIEW_THETA=-2.76, VIEW_PHI=1.15, VIEW_R=11.0;
+  const VIEW_THETA=0.38, VIEW_PHI=1.15, VIEW_R=11.0;
   const ctrl={theta:VIEW_THETA,phi:VIEW_PHI,radius:VIEW_R,tTheta:VIEW_THETA,tPhi:VIEW_PHI,tRadius:VIEW_R,target:new THREE.Vector3(0,0,0),
     dragging:false,moved:false,lastX:0,lastY:0,downX:0,downY:0,idle:0,minPhi:0.25,maxPhi:1.5,minR:5,maxR:40};
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
