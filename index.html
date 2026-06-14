@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waldemar Paustian — Portfolio</title>
+<style>
+  :root{--ink:#2b2a33;--muted:#7a7782;--line:#e7e3dd;--accent:#5b6cff}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;color:var(--ink);
+       -webkit-font-smoothing:antialiased;overflow:hidden;background:#f3eee9}
+  .bg{position:fixed;inset:0;z-index:0;background:
+      radial-gradient(60% 60% at 18% 22%, #ffd9c2 0%, rgba(255,217,194,0) 60%),
+      radial-gradient(55% 55% at 82% 26%, #c9d8ff 0%, rgba(201,216,255,0) 62%),
+      radial-gradient(70% 70% at 70% 85%, #ffd0e4 0%, rgba(255,208,228,0) 60%),
+      radial-gradient(60% 60% at 25% 80%, #d8f0e6 0%, rgba(216,240,230,0) 60%),
+      linear-gradient(180deg,#fbf7f3,#f2ecf6)}
+  canvas{position:fixed;inset:0;z-index:1;display:block;touch-action:none}
+
+  nav{position:fixed;z-index:20;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:18px 26px;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.02em}
+  .brand .mk{width:12px;height:12px;border-radius:50%;background:var(--ink)}
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{border:1px solid var(--line);background:rgba(255,255,255,.8);backdrop-filter:blur(6px);color:var(--ink);
+       border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+  .btn:hover{background:#fff}
+  .btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+  .intro{position:fixed;z-index:10;left:26px;bottom:24px;max-width:320px;transition:opacity .4s}
+  .intro h1{font-size:clamp(22px,3.4vw,34px);line-height:1.05;letter-spacing:-.03em;font-weight:680}
+  .intro p{margin-top:10px;color:var(--muted);font-size:14px;line-height:1.5}
+  .modetag{position:fixed;z-index:10;right:26px;bottom:24px;font-size:12.5px;color:var(--muted);background:rgba(255,255,255,.7);
+           backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:999px;padding:7px 13px;max-width:62vw}
+
+  /* 3D hover tooltip (HTML, follows the hovered sign) */
+  #tooltip{position:fixed;z-index:14;transform:translate(-50%,-135%);background:#2b2a33;color:#fff;padding:6px 11px;border-radius:8px;
+           font-size:12.5px;font-weight:600;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .18s}
+  #tooltip.show{opacity:1}
+  #tooltip::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#2b2a33}
+
+  .editor{position:fixed;z-index:26;left:26px;bottom:24px;width:300px;background:#fff;border:1px solid var(--line);
+          border-radius:16px;box-shadow:0 20px 50px rgba(40,30,60,.18);padding:16px;display:none}
+  .editor.show{display:block}
+  .editor h3{font-size:14px;margin-bottom:4px}
+  .editor .sub{font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.4}
+  .editor label{display:block;font-size:11px;color:var(--muted);margin:10px 0 3px}
+  .editor input[type=text]{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit;color:var(--ink);background:#fbfafa}
+  .editor input[type=range]{width:100%}
+  .editor .two{display:flex;gap:10px}.editor .two>div{flex:1}
+  .editor .ebtns{display:flex;justify-content:space-between;margin-top:14px;gap:8px;flex-wrap:wrap}
+  .editor .del{color:#c2453b;border:1px solid #f0d4d1;background:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .editor .add{color:var(--accent);border:1px solid #d4d9f5;background:#fff;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .editor .done{background:var(--ink);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+
+  .drop{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(248,244,240,.55);backdrop-filter:blur(2px)}
+  .drop.hide{display:none}
+  .drop .box{width:min(460px,86vw);border:2px dashed #c6bdb0;border-radius:20px;background:rgba(255,255,255,.72);padding:42px 30px;text-align:center;cursor:pointer}
+  .drop .box.hot{border-color:var(--accent);background:rgba(255,255,255,.92)}
+  .drop h2{font-size:22px;letter-spacing:-.02em}.drop p{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.5}
+  .drop .small{margin-top:14px;font-size:12px;color:#9a948b}
+  .err{position:fixed;z-index:35;left:50%;bottom:30px;transform:translateX(-50%);background:#fff;border:1px solid #f0d4d1;color:#b23b32;padding:10px 16px;border-radius:10px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.1);display:none}
+</style>
+</head>
+<body>
+  <div class="bg"></div>
+  <canvas id="c"></canvas>
+  <div id="tooltip"></div>
+
+  <nav>
+    <div class="brand"><span class="mk"></span> Waldemar&nbsp;Paustian</div>
+    <div class="tools">
+      <button class="btn" id="loadBtn">📁 Load .glb</button>
+      <button class="btn" id="editBtn">✛ Edit areas</button>
+      <button class="btn" id="exportBtn">⤓ Export</button>
+      <button class="btn" id="importBtn">⤒ Import</button>
+    </div>
+  </nav>
+
+  <div class="intro" id="intro">
+    <h1>A little world<br>of things I’ve made.</h1>
+    <p id="introP">Drag to orbit. Hover a sign — then click to open the page.</p>
+  </div>
+  <div class="modetag" id="modetag">Preview mode</div>
+
+  <div class="editor" id="editor">
+    <h3>Edit sign</h3>
+    <div class="sub">Select a sign, then click the model to move it. Sliders resize the plate.</div>
+    <label>Label (text on the sign)</label>
+    <input type="text" id="ed-label" placeholder="About Me">
+    <label>Link (page or URL)</label>
+    <input type="text" id="ed-link" placeholder="about.html">
+    <div class="two">
+      <div><label>Width <span id="lw"></span></label><input type="range" id="ed-w" min="0.1" max="1.6" step="0.02"></div>
+      <div><label>Height <span id="lh"></span></label><input type="range" id="ed-h" min="0.05" max="0.9" step="0.01"></div>
+    </div>
+    <div class="ebtns">
+      <button class="add" id="ed-add">+ Add sign</button>
+      <button class="del" id="ed-del">Delete</button>
+      <button class="done" id="ed-done">Done</button>
+    </div>
+  </div>
+
+  <div class="drop" id="drop">
+    <div class="box" id="dropbox">
+      <h2>Drop your .glb here</h2>
+      <p>or click to choose a file. Use the optimized <b>treehouse-optimized.glb</b>.</p>
+      <div class="small">When you host this folder online, the model loads automatically.</div>
+    </div>
+  </div>
+  <div class="err" id="err"></div>
+  <input type="file" id="fileInput" accept=".glb,.gltf" style="display:none">
+  <input type="file" id="importInput" accept=".json,application/json" style="display:none">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const MODEL_URL='treehouse-optimized.glb';
+  const DEFAULTS=[
+    {label:'About Me',link:'about.html',  p:[-0.6935189244907043,-0.1042418108650898,-0.1742905762098368],  hw:0.36,hh:0.09},
+    {label:'Works',   link:'works.html',  p:[-0.6982880685973641,-0.19902294977780008,-0.17272462593622137],hw:0.36,hh:0.08},
+    {label:'Blog',    link:'blog.html',   p:[-0.6946366258316897,-0.2912489713929793,-0.17380577636004757], hw:0.36,hh:0.08},
+    {label:'Contact', link:'contact.html',p:[-0.696093515487947,-0.3867253317476597,-0.17356162396258187],   hw:0.34,hh:0.08},
+  ];
+  const STORAGE_KEY='portfolio_areas_v1';
+
+  const canvas=$('c');
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.outputEncoding=THREE.sRGBEncoding; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.0;
+  const MAXANISO = renderer.capabilities.getMaxAnisotropy ? renderer.capabilities.getMaxAnisotropy() : 4;
+
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(35,innerWidth/innerHeight,0.05,200);
+  scene.add(new THREE.HemisphereLight('#ffffff','#cfc6ba',0.7));
+  scene.add(new THREE.AmbientLight('#ffffff',0.18));
+  const key=new THREE.DirectionalLight('#fff5ec',1.9); key.position.set(6,12,7); key.castShadow=true;
+  key.shadow.mapSize.set(2048,2048); key.shadow.camera.near=0.5; key.shadow.camera.far=60;
+  key.shadow.camera.left=-12;key.shadow.camera.right=12;key.shadow.camera.top=12;key.shadow.camera.bottom=-12;
+  key.shadow.bias=-0.0005; key.shadow.radius=5; scene.add(key);
+  const rim=new THREE.DirectionalLight('#cfe0ff',0.4); rim.position.set(-7,5,-7); scene.add(rim);
+
+  let modelRoot=null, modelScale=1;
+  const modelGroup=new THREE.Group(); scene.add(modelGroup);
+  let areas=[], selected=null, editMode=false, hovered=null;
+
+  // ---------- orbit ----------
+  const ctrl={theta:0.7,phi:1.05,radius:13,tTheta:0.7,tPhi:1.05,tRadius:13,target:new THREE.Vector3(0,0,0),
+    dragging:false,moved:false,lastX:0,lastY:0,downX:0,downY:0,idle:0,minPhi:0.25,maxPhi:1.5,minR:5,maxR:40};
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function applyCamera(){
+    ctrl.theta+=(ctrl.tTheta-ctrl.theta)*0.12; ctrl.phi+=(ctrl.tPhi-ctrl.phi)*0.12; ctrl.radius+=(ctrl.tRadius-ctrl.radius)*0.1;
+    const r=ctrl.radius,ph=ctrl.phi,th=ctrl.theta;
+    camera.position.set(ctrl.target.x+r*Math.sin(ph)*Math.sin(th),ctrl.target.y+r*Math.cos(ph),ctrl.target.z+r*Math.sin(ph)*Math.cos(th));
+    camera.lookAt(ctrl.target);
+  }
+
+  // ---------- pointer ----------
+  const raycaster=new THREE.Raycaster(), ndc=new THREE.Vector2();
+  function setNdc(e){ ndc.x=(e.clientX/innerWidth)*2-1; ndc.y=-(e.clientY/innerHeight)*2+1; raycaster.setFromCamera(ndc,camera); }
+  function pickSign(e){ setNdc(e); const hit=raycaster.intersectObjects(areas.map(a=>a.mesh),false)[0];
+    return hit?areas.find(a=>a.mesh===hit.object):null; }
+  function modelHits(){ if(!modelRoot)return []; const set=new Set(areas.map(a=>a.mesh));
+    return raycaster.intersectObject(modelRoot,true).filter(h=>!set.has(h.object)); }
+  function pickModel(e){ setNdc(e); return modelHits()[0]||null; }
+
+  canvas.addEventListener('pointerdown',e=>{ctrl.dragging=true;ctrl.moved=false;ctrl.lastX=e.clientX;ctrl.lastY=e.clientY;ctrl.downX=e.clientX;ctrl.downY=e.clientY;ctrl.idle=0;canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{
+    if(ctrl.dragging){ const dx=e.clientX-ctrl.lastX,dy=e.clientY-ctrl.lastY; ctrl.lastX=e.clientX;ctrl.lastY=e.clientY;ctrl.idle=0;
+      if(Math.abs(e.clientX-ctrl.downX)+Math.abs(e.clientY-ctrl.downY)>6)ctrl.moved=true;
+      ctrl.tTheta-=dx*0.008; ctrl.tPhi=clamp(ctrl.tPhi-dy*0.006,ctrl.minPhi,ctrl.maxPhi); return; }
+    // hover detection
+    hovered=modelRoot?pickSign(e):null;
+    canvas.style.cursor=hovered?'pointer':'default';
+  });
+  window.addEventListener('pointerup',e=>{ const wasDrag=ctrl.dragging,moved=ctrl.moved; ctrl.dragging=false;
+    if(!modelRoot||moved) return;
+    const sign=pickSign(e);
+    if(editMode){ if(sign){ selectArea(sign); } else if(selected){ const h=pickModel(e); if(h) placeArea(selected,h); } }
+    else if(sign && sign.data.link){ window.location.href=sign.data.link; }
+  });
+  canvas.addEventListener('wheel',e=>{e.preventDefault();ctrl.tRadius=clamp(ctrl.tRadius+e.deltaY*0.012,ctrl.minR,ctrl.maxR);ctrl.idle=0;},{passive:false});
+
+  // ---------- sign nameplate (canvas texture on a plane, oriented to the surface) ----------
+  function roundRect(x,a,b,w,h,r){ x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath(); }
+  function makeTexture(label,hw,hh){
+    const W=512, H=Math.max(80,Math.round(W*(hh/hw)));
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
+    const g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,'#ead0a8'); g.addColorStop(1,'#caa97c');
+    x.fillStyle=g; roundRect(x,0,0,W,H,Math.min(30,H*0.2)); x.fill();
+    x.lineWidth=Math.max(3,H*0.05); x.strokeStyle='rgba(120,86,50,.5)';
+    roundRect(x,x.lineWidth,x.lineWidth,W-2*x.lineWidth,H-2*x.lineWidth,Math.min(24,H*0.16)); x.stroke();
+    x.fillStyle='#3a2410'; x.textAlign='center'; x.textBaseline='middle';
+    let fs=H*0.52; const ff=n=>('800 '+n+'px -apple-system,Segoe UI,Helvetica,Arial,sans-serif');
+    x.font=ff(fs); while(x.measureText(label).width>W*0.84 && fs>12){ fs-=2; x.font=ff(fs); }
+    x.fillText(label,W/2,H/2+fs*0.06);
+    const t=new THREE.CanvasTexture(cv); t.anisotropy=MAXANISO; t.encoding=THREE.sRGBEncoding; t.needsUpdate=true; return t;
+  }
+  // outward surface normal (in modelRoot-local space) at a local point
+  const _m3=new THREE.Matrix3();
+  function localNormalAt(L){
+    const worldP=modelRoot.localToWorld(L.clone());
+    const cW=new THREE.Vector3(); modelRoot.getWorldPosition(cW);
+    const outward=worldP.clone().sub(cW).normalize();
+    raycaster.set(worldP.clone().addScaledVector(outward,2.5*modelScale), outward.clone().negate()); raycaster.far=Infinity;
+    const hits=modelHits();
+    let nWorld=outward.clone();
+    if(hits.length){ let best=hits[0],bd=1e9; hits.forEach(h=>{const d=h.point.distanceTo(worldP); if(d<bd){bd=d;best=h;}});
+      if(best.face){ nWorld=best.face.normal.clone().applyNormalMatrix(_m3.getNormalMatrix(best.object.matrixWorld)).normalize();
+        if(nWorld.dot(outward)<0) nWorld.negate(); } }
+    return modelRoot.worldToLocal(worldP.clone().add(nWorld)).sub(L).normalize();
+  }
+  function worldNormalToLocal(L,nWorld){ const worldP=modelRoot.localToWorld(L.clone());
+    return modelRoot.worldToLocal(worldP.add(nWorld)).sub(L).normalize(); }
+  const _z=new THREE.Vector3(0,0,1);
+  function orient(mesh,L,ln){ mesh.position.copy(L).addScaledVector(ln,0.012/modelScale); mesh.quaternion.setFromUnitVectors(_z,ln.clone().normalize()); }
+  function geomFor(d){ return new THREE.PlaneGeometry(2*d.hw/modelScale, 2*d.hh/modelScale); }
+
+  function makeArea(L,data,ln){
+    const d=Object.assign({label:'Link',link:'',hw:0.5,hh:0.16},data);
+    const normal = ln || localNormalAt(L);   // compute before adding the plate so it isn't self-hit
+    const mat=new THREE.MeshStandardMaterial({map:makeTexture(d.label,d.hw,d.hh),roughness:.8,metalness:0,
+      emissive:new THREE.Color('#ffc488'),emissiveIntensity:0});
+    const mesh=new THREE.Mesh(geomFor(d),mat); modelRoot.add(mesh);
+    orient(mesh,L,normal);
+    const a={mesh,L:L.clone(),ln:normal,data:d,glow:0,scale:1}; areas.push(a); return a;
+  }
+  function placeArea(a,hit){ // move to a model surface point (recompute orientation)
+    const L=modelRoot.worldToLocal(hit.point.clone());
+    let ln; if(hit.face){ const nW=hit.face.normal.clone().applyNormalMatrix(_m3.getNormalMatrix(hit.object.matrixWorld)).normalize(); ln=worldNormalToLocal(L,nW); }
+    else ln=localNormalAt(L);
+    a.L.copy(L); a.ln.copy(ln); orient(a.mesh,L,ln); save();
+  }
+  function refreshTexture(a){ if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.map=makeTexture(a.data.label,a.data.hw,a.data.hh); a.mesh.material.needsUpdate=true; }
+  function refreshGeom(a){ a.mesh.geometry.dispose(); a.mesh.geometry=geomFor(a.data); orient(a.mesh,a.L,a.ln); }
+  function clearAreas(){ areas.forEach(a=>{a.mesh.geometry.dispose(); if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.dispose(); modelRoot&&modelRoot.remove(a.mesh);}); areas=[]; selected=null; hovered=null; }
+
+  // ---------- editor ----------
+  const editor=$('editor');
+  function selectArea(a){ selected=a;
+    $('ed-label').value=a.data.label; $('ed-link').value=a.data.link;
+    $('ed-w').value=a.data.hw; $('ed-h').value=a.data.hh; $('lw').textContent=a.data.hw.toFixed(2); $('lh').textContent=a.data.hh.toFixed(2);
+    editor.classList.add('show'); }
+  $('ed-label').addEventListener('input',()=>{ if(selected){selected.data.label=$('ed-label').value; refreshTexture(selected); save();} });
+  $('ed-link').addEventListener('input',()=>{ if(selected){selected.data.link=$('ed-link').value; save();} });
+  $('ed-w').addEventListener('input',()=>{ if(selected){selected.data.hw=parseFloat($('ed-w').value); $('lw').textContent=selected.data.hw.toFixed(2); refreshGeom(selected); refreshTexture(selected); save();} });
+  $('ed-h').addEventListener('input',()=>{ if(selected){selected.data.hh=parseFloat($('ed-h').value); $('lh').textContent=selected.data.hh.toFixed(2); refreshGeom(selected); refreshTexture(selected); save();} });
+  $('ed-add').addEventListener('click',()=>{ if(!modelRoot)return;
+    const a=makeArea(new THREE.Vector3(0,0.3/modelScale,0),{label:'New sign',link:'',hw:0.45,hh:0.15}); selectArea(a); save(); });
+  $('ed-del').addEventListener('click',()=>{ if(!selected)return;
+    const a=selected; a.mesh.geometry.dispose(); if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.dispose(); modelRoot.remove(a.mesh);
+    areas=areas.filter(x=>x!==a); selected=null; editor.classList.remove('show'); save(); });
+  $('ed-done').addEventListener('click',()=>{ editor.classList.remove('show'); selected=null; });
+
+  function setEdit(on){ editMode=on; $('editBtn').classList.toggle('on',on);
+    $('modetag').textContent=on?'Edit mode · select a sign, then click the model to move it':'Preview mode';
+    if(!on){ editor.classList.remove('show'); selected=null; } }
+  $('editBtn').addEventListener('click',()=>{ if(!modelRoot){showErr('Load a .glb first.');return;} setEdit(!editMode); });
+
+  // ---------- tooltip + hover/selection animation ----------
+  const tipEl=$('tooltip'); const _wp=new THREE.Vector3();
+  const warm=new THREE.Color('#ffc488'), blue=new THREE.Color('#5b6cff');
+  function updateVisual(){
+    let tipShown=false;
+    areas.forEach(a=>{
+      const isHover=(a===hovered && !editMode), isSel=(a===selected && editMode);
+      const tScale=isHover?1.07:1.0; a.scale+=(tScale-a.scale)*0.2; a.mesh.scale.setScalar(a.scale);
+      const tGlow=isHover?0.4:(isSel?0.55:0); a.glow+=(tGlow-a.glow)*0.2;
+      a.mesh.material.emissive.copy(isSel?blue:warm); a.mesh.material.emissiveIntensity=a.glow;
+      if(isHover){ a.mesh.getWorldPosition(_wp); const p=_wp.project(camera);
+        if(p.z<1){ tipEl.style.left=((p.x*0.5+0.5)*innerWidth)+'px'; tipEl.style.top=((-p.y*0.5+0.5)*innerHeight)+'px';
+          tipEl.textContent='Open '+a.data.label+' →'; tipEl.classList.add('show'); tipShown=true; } }
+    });
+    if(!tipShown) tipEl.classList.remove('show');
+  }
+
+  // ---------- model loading ----------
+  function makeLoader(){ if(!THREE.GLTFLoader)return null; const l=new THREE.GLTFLoader();
+    if(THREE.DRACOLoader){ const d=new THREE.DRACOLoader(); d.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/'); l.setDRACOLoader(d); } return l; }
+  function loadFromBuffer(buf){ const l=makeLoader(); if(!l){showErr('Loader unavailable (need internet).');return;}
+    try{ l.parse(buf,'',g=>setupModel(g.scene),()=>showErr('Could not read this .glb.')); }catch(e){showErr('Could not read this .glb.');} }
+  function setupModel(root){
+    if(modelRoot){ clearAreas(); modelGroup.remove(modelRoot); }
+    modelRoot=root;
+    root.traverse(o=>{ if(o.isMesh){o.castShadow=true;o.receiveShadow=true; if(o.material&&o.material.map)o.material.map.encoding=THREE.sRGBEncoding;} });
+    const box=new THREE.Box3().setFromObject(root); const c=box.getCenter(new THREE.Vector3()); const sz=box.getSize(new THREE.Vector3());
+    const maxDim=Math.max(sz.x,sz.y,sz.z)||1; modelScale=6/maxDim;
+    root.position.sub(c); root.scale.setScalar(modelScale); root.position.multiplyScalar(modelScale);
+    modelGroup.add(root); modelGroup.updateMatrixWorld(true);
+    ctrl.tRadius=11.4; ctrl.radius=11.4;
+    $('drop').classList.add('hide'); restore();
+  }
+  function showErr(m){ const e=$('err'); e.textContent=m; e.style.display='block'; setTimeout(()=>e.style.display='none',4000); }
+
+  // ---------- persistence ----------
+  function serialize(){ return areas.map(a=>({p:[a.L.x,a.L.y,a.L.z],label:a.data.label,link:a.data.link,hw:a.data.hw,hh:a.data.hh})); }
+  function save(){ try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(serialize())); }catch(e){} }
+  function build(arr){ clearAreas(); arr.forEach(o=>makeArea(new THREE.Vector3(o.p[0],o.p[1],o.p[2]),{label:o.label,link:o.link,hw:o.hw,hh:o.hh})); }
+  function restore(){ let arr=DEFAULTS; try{ const raw=localStorage.getItem(STORAGE_KEY); if(raw){const p=JSON.parse(raw); if(p&&p.length)arr=p;} }catch(e){} build(arr); }
+
+  // ---------- UI ----------
+  $('loadBtn').addEventListener('click',()=>$('fileInput').click());
+  $('dropbox').addEventListener('click',()=>$('fileInput').click());
+  $('fileInput').addEventListener('change',e=>{const f=e.target.files[0]; if(f)readFile(f);});
+  function readFile(f){const r=new FileReader(); r.onload=()=>loadFromBuffer(r.result); r.readAsArrayBuffer(f);}
+  const drop=$('drop'),dropbox=$('dropbox');
+  ['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{e.preventDefault();if(!modelRoot)drop.classList.remove('hide');dropbox.classList.add('hot');}));
+  ['dragleave','drop'].forEach(ev=>window.addEventListener(ev,e=>{e.preventDefault();dropbox.classList.remove('hot');}));
+  window.addEventListener('drop',e=>{const f=e.dataTransfer.files[0]; if(f&&/\.(glb|gltf)$/i.test(f.name))readFile(f); else if(f)showErr('Please drop a .glb file.');});
+  $('exportBtn').addEventListener('click',()=>{ if(!areas.length){showErr('Nothing to export yet.');return;}
+    const b=new Blob([JSON.stringify(serialize(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='areas.json'; a.click(); });
+  $('importBtn').addEventListener('click',()=>{ if(!modelRoot){showErr('Load a .glb first.');return;} $('importInput').click(); });
+  $('importInput').addEventListener('change',e=>{const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+    r.onload=()=>{ try{ build(JSON.parse(r.result)); save(); }catch(err){ showErr('Invalid file.'); } }; r.readAsText(f); });
+
+  (function autoLoad(){ const l=makeLoader(); if(!l)return; l.load(MODEL_URL, g=>setupModel(g.scene), undefined, ()=>{}); })();
+
+  // ---------- loop ----------
+  let t=0;
+  function tick(){ t+=0.016; ctrl.idle+=0.016;
+    if(!ctrl.dragging && !editMode && ctrl.idle>2.5) ctrl.tTheta+=0.0015;
+    modelGroup.position.y=Math.sin(t*0.9)*0.12;
+    applyCamera(); if(modelRoot) updateVisual(); renderer.render(scene,camera); requestAnimationFrame(tick); }
+  function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
+  window.addEventListener('resize',resize); resize(); tick();
+})();
+</script>
+</body>
+</html>
