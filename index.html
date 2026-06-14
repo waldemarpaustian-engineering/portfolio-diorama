@@ -166,7 +166,8 @@
   // ---------- pointer ----------
   const raycaster=new THREE.Raycaster(), ndc=new THREE.Vector2();
   function setNdc(e){ ndc.x=(e.clientX/innerWidth)*2-1; ndc.y=-(e.clientY/innerHeight)*2+1; raycaster.setFromCamera(ndc,camera); }
-  function pickSign(e){ setNdc(e); const hit=raycaster.intersectObjects(areas.map(a=>a.mesh),false)[0];
+  function pickSign(e){ setNdc(e); const meshes=areas.filter(a=>a.faceVisible!==false).map(a=>a.mesh);
+    const hit=raycaster.intersectObjects(meshes,false)[0];
     return hit?areas.find(a=>a.mesh===hit.object):null; }
   function modelHits(){ if(!modelRoot)return []; const set=new Set(areas.map(a=>a.mesh));
     return raycaster.intersectObject(modelRoot,true).filter(h=>!set.has(h.object)); }
@@ -231,8 +232,9 @@
     const d=Object.assign({label:'Link',link:'',hw:0.5,hh:0.16},data);
     const normal = ln || localNormalAt(L);   // compute before adding the plate so it isn't self-hit
     const mat=new THREE.MeshStandardMaterial({map:makeTexture(d.label,d.hw,d.hh),roughness:.8,metalness:0,
-      side:THREE.DoubleSide,emissive:new THREE.Color('#ffc488'),emissiveIntensity:0});
-    const mesh=new THREE.Mesh(geomFor(d),mat); modelRoot.add(mesh);
+      side:THREE.DoubleSide,emissive:new THREE.Color('#ffc488'),emissiveIntensity:0,
+      transparent:true,depthTest:false,depthWrite:false});
+    const mesh=new THREE.Mesh(geomFor(d),mat); mesh.renderOrder=999; modelRoot.add(mesh);
     orient(mesh,L,normal);
     const a={mesh,L:L.clone(),ln:normal,data:d,glow:0,scale:1}; areas.push(a); return a;
   }
@@ -269,16 +271,23 @@
   $('editBtn').addEventListener('click',()=>{ if(!modelRoot){showErr('Load a .glb first.');return;} setEdit(!editMode); });
 
   // ---------- tooltip + hover/selection animation ----------
-  const tipEl=$('tooltip'); const _wp=new THREE.Vector3();
+  const tipEl=$('tooltip'); const _wp=new THREE.Vector3(), _center=new THREE.Vector3(), _view=new THREE.Vector3(), _sd=new THREE.Vector3();
   const warm=new THREE.Color('#ffc488'), blue=new THREE.Color('#5b6cff');
   function updateVisual(){
+    modelRoot.getWorldPosition(_center);
+    _view.copy(camera.position).sub(_center).normalize();
     let tipShown=false;
     areas.forEach(a=>{
+      a.mesh.getWorldPosition(_wp);
+      // show a sign only when it's on the camera-facing side of the model
+      const facing = _sd.copy(_wp).sub(_center).normalize().dot(_view) > -0.12;
+      a.faceVisible=facing; a.mesh.visible=facing;
+      if(!facing){ if(a===hovered)hovered=null; return; }
       const isHover=(a===hovered && !editMode), isSel=(a===selected && editMode);
       const tScale=isHover?1.07:1.0; a.scale+=(tScale-a.scale)*0.2; a.mesh.scale.setScalar(a.scale);
       const tGlow=isHover?0.4:(isSel?0.55:0); a.glow+=(tGlow-a.glow)*0.2;
       a.mesh.material.emissive.copy(isSel?blue:warm); a.mesh.material.emissiveIntensity=a.glow;
-      if(isHover){ a.mesh.getWorldPosition(_wp); const p=_wp.project(camera);
+      if(isHover){ const p=_sd.copy(_wp).project(camera);
         if(p.z<1){ tipEl.style.left=((p.x*0.5+0.5)*innerWidth)+'px'; tipEl.style.top=((-p.y*0.5+0.5)*innerHeight)+'px';
           tipEl.textContent='Open '+a.data.label+' →'; tipEl.classList.add('show'); tipShown=true; } }
     });
