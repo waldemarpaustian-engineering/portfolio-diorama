@@ -207,47 +207,19 @@
     x.fillText(label,W/2,H/2+fs*0.06);
     const t=new THREE.CanvasTexture(cv); t.anisotropy=MAXANISO; t.encoding=THREE.sRGBEncoding; t.needsUpdate=true; return t;
   }
-  // outward surface normal (in modelRoot-local space) at a local point
-  const _m3=new THREE.Matrix3();
-  function localNormalAt(L){
-    const worldP=modelRoot.localToWorld(L.clone());
-    const cW=new THREE.Vector3(); modelRoot.getWorldPosition(cW);
-    const outward=worldP.clone().sub(cW).normalize();
-    raycaster.set(worldP.clone().addScaledVector(outward,2.5*modelScale), outward.clone().negate()); raycaster.far=Infinity;
-    const hits=modelHits();
-    let nWorld=outward.clone();
-    if(hits.length){ let best=hits[0],bd=1e9; hits.forEach(h=>{const d=h.point.distanceTo(worldP); if(d<bd){bd=d;best=h;}});
-      if(best.face){ nWorld=best.face.normal.clone().applyNormalMatrix(_m3.getNormalMatrix(best.object.matrixWorld)).normalize();
-        if(nWorld.dot(outward)<0) nWorld.negate(); } }
-    const ln=modelRoot.worldToLocal(worldP.clone().add(nWorld)).sub(L);
-    if(!isFinite(ln.x)||!isFinite(ln.y)||!isFinite(ln.z)||ln.lengthSq()<1e-9)
-      return modelRoot.worldToLocal(worldP.clone().add(outward)).sub(L).normalize();
-    return ln.normalize();
-  }
-  function worldNormalToLocal(L,nWorld){ const worldP=modelRoot.localToWorld(L.clone());
-    return modelRoot.worldToLocal(worldP.add(nWorld)).sub(L).normalize(); }
-  const _z=new THREE.Vector3(0,0,1);
-  function orient(mesh,L,ln){ mesh.position.copy(L).addScaledVector(ln,0.02/modelScale); mesh.quaternion.setFromUnitVectors(_z,ln.clone().normalize()); }
   function geomFor(d){ return new THREE.PlaneGeometry(2*d.hw/modelScale, 2*d.hh/modelScale); }
 
-  function makeArea(L,data,ln){
+  function makeArea(L,data){
     const d=Object.assign({label:'Link',link:'',hw:0.5,hh:0.16},data);
-    const normal = ln || localNormalAt(L);   // compute before adding the plate so it isn't self-hit
     const mat=new THREE.MeshStandardMaterial({map:makeTexture(d.label,d.hw,d.hh),roughness:.8,metalness:0,
       side:THREE.DoubleSide,emissive:new THREE.Color('#ffc488'),emissiveIntensity:0,
       transparent:true,depthTest:false,depthWrite:false});
-    const mesh=new THREE.Mesh(geomFor(d),mat); mesh.renderOrder=999; modelRoot.add(mesh);
-    orient(mesh,L,normal);
-    const a={mesh,L:L.clone(),ln:normal,data:d,glow:0,scale:1}; areas.push(a); return a;
+    const mesh=new THREE.Mesh(geomFor(d),mat); mesh.renderOrder=999; mesh.position.copy(L); modelRoot.add(mesh);
+    const a={mesh,L:L.clone(),data:d,glow:0,scale:1}; areas.push(a); return a;
   }
-  function placeArea(a,hit){ // move to a model surface point (recompute orientation)
-    const L=modelRoot.worldToLocal(hit.point.clone());
-    let ln; if(hit.face){ const nW=hit.face.normal.clone().applyNormalMatrix(_m3.getNormalMatrix(hit.object.matrixWorld)).normalize(); ln=worldNormalToLocal(L,nW); }
-    else ln=localNormalAt(L);
-    a.L.copy(L); a.ln.copy(ln); orient(a.mesh,L,ln); save();
-  }
+  function placeArea(a,hit){ a.L.copy(modelRoot.worldToLocal(hit.point.clone())); a.mesh.position.copy(a.L); save(); }
   function refreshTexture(a){ if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.map=makeTexture(a.data.label,a.data.hw,a.data.hh); a.mesh.material.needsUpdate=true; }
-  function refreshGeom(a){ a.mesh.geometry.dispose(); a.mesh.geometry=geomFor(a.data); orient(a.mesh,a.L,a.ln); }
+  function refreshGeom(a){ a.mesh.geometry.dispose(); a.mesh.geometry=geomFor(a.data); a.mesh.position.copy(a.L); }
   function clearAreas(){ areas.forEach(a=>{a.mesh.geometry.dispose(); if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.dispose(); modelRoot&&modelRoot.remove(a.mesh);}); areas=[]; selected=null; hovered=null; }
 
   // ---------- editor ----------
@@ -274,6 +246,7 @@
 
   // ---------- tooltip + hover/selection animation ----------
   const tipEl=$('tooltip'); const _wp=new THREE.Vector3(), _center=new THREE.Vector3(), _view=new THREE.Vector3(), _sd=new THREE.Vector3();
+  const _f=new THREE.Vector3(), _r=new THREE.Vector3(), _u=new THREE.Vector3(), _bm=new THREE.Matrix4(), _UP=new THREE.Vector3(0,1,0), _ALT=new THREE.Vector3(0,0,1);
   const warm=new THREE.Color('#ffc488'), blue=new THREE.Color('#5b6cff');
   function updateVisual(){
     modelRoot.getWorldPosition(_center);
@@ -281,10 +254,15 @@
     let tipShown=false;
     areas.forEach(a=>{
       a.mesh.getWorldPosition(_wp);
-      // show a sign only when it's on the camera-facing side of the model
-      const facing = _sd.copy(_wp).sub(_center).normalize().dot(_view) > -0.12;
+      // hide a sign only when it's clearly on the far side of the island
+      const facing = _sd.copy(_wp).sub(_center).normalize().dot(_view) > -0.15;
       a.faceVisible=facing; a.mesh.visible=facing;
       if(!facing){ if(a===hovered)hovered=null; return; }
+      // billboard: turn the sign to face the camera, kept upright → always readable, never mirrored
+      _f.copy(camera.position).sub(_wp).normalize();
+      const up = Math.abs(_f.y)>0.95 ? _ALT : _UP;
+      _r.crossVectors(up,_f).normalize(); _u.crossVectors(_f,_r).normalize();
+      _bm.makeBasis(_r,_u,_f); a.mesh.quaternion.setFromRotationMatrix(_bm);
       const isHover=(a===hovered && !editMode), isSel=(a===selected && editMode);
       const tScale=isHover?1.07:1.0; a.scale+=(tScale-a.scale)*0.2; a.mesh.scale.setScalar(a.scale);
       const tGlow=isHover?0.4:(isSel?0.55:0); a.glow+=(tGlow-a.glow)*0.2;
