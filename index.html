@@ -153,7 +153,9 @@
   let areas=[], selected=null, editMode=false, hovered=null;
 
   // ---------- orbit ----------
-  const ctrl={theta:0.7,phi:1.05,radius:13,tTheta:0.7,tPhi:1.05,tRadius:13,target:new THREE.Vector3(0,0,0),
+  // default view aimed at the signpost (so the nav is visible on load)
+  const VIEW_THETA=-1.81, VIEW_PHI=1.02, VIEW_R=11.4;
+  const ctrl={theta:VIEW_THETA,phi:VIEW_PHI,radius:VIEW_R,tTheta:VIEW_THETA,tPhi:VIEW_PHI,tRadius:VIEW_R,target:new THREE.Vector3(0,0,0),
     dragging:false,moved:false,lastX:0,lastY:0,downX:0,downY:0,idle:0,minPhi:0.25,maxPhi:1.5,minR:5,maxR:40};
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   function applyCamera(){
@@ -307,7 +309,7 @@
     const maxDim=Math.max(sz.x,sz.y,sz.z)||1; modelScale=6/maxDim;
     root.position.sub(c); root.scale.setScalar(modelScale); root.position.multiplyScalar(modelScale);
     modelGroup.add(root); modelGroup.updateMatrixWorld(true);
-    ctrl.tRadius=11.4; ctrl.radius=11.4;
+    ctrl.tRadius=ctrl.radius=VIEW_R; ctrl.tTheta=ctrl.theta=VIEW_THETA; ctrl.tPhi=ctrl.phi=VIEW_PHI;
     $('drop').classList.add('hide'); restore();
   }
   function showErr(m){ const e=$('err'); e.textContent=m; e.style.display='block'; setTimeout(()=>e.style.display='none',4000); }
@@ -338,7 +340,7 @@
   // ---------- loop ----------
   let t=0;
   function tick(){ t+=0.016; ctrl.idle+=0.016;
-    if(!ctrl.dragging && !editMode && ctrl.idle>2.5) ctrl.tTheta+=0.0015;
+    // auto-rotation disabled so the signpost navigation stays in view
     modelGroup.position.y=Math.sin(t*0.9)*0.12;
     applyCamera(); if(modelRoot) updateVisual(); renderer.render(scene,camera); requestAnimationFrame(tick); }
   function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}
