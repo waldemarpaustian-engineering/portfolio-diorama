@@ -208,18 +208,26 @@
     const t=new THREE.CanvasTexture(cv); t.anisotropy=MAXANISO; t.encoding=THREE.sRGBEncoding; t.needsUpdate=true; return t;
   }
   function geomFor(d){ return new THREE.PlaneGeometry(2*d.hw/modelScale, 2*d.hh/modelScale); }
+  // signs sit fixed & flat, facing the front of the diorama (the default view direction)
+  const FRONT=new THREE.Vector3(Math.sin(VIEW_THETA),0,Math.cos(VIEW_THETA)).normalize();
+  function orientFixed(mesh){
+    const up=new THREE.Vector3(0,1,0);
+    const r=new THREE.Vector3().crossVectors(up,FRONT).normalize();
+    const u=new THREE.Vector3().crossVectors(FRONT,r).normalize();
+    mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(r,u,FRONT));
+  }
 
   function makeArea(L,data){
     const d=Object.assign({label:'Link',link:'',hw:0.5,hh:0.16},data);
     const mat=new THREE.MeshStandardMaterial({map:makeTexture(d.label,d.hw,d.hh),roughness:.8,metalness:0,
-      side:THREE.DoubleSide,emissive:new THREE.Color('#ffc488'),emissiveIntensity:0,
+      side:THREE.FrontSide,emissive:new THREE.Color('#ffc488'),emissiveIntensity:0,
       transparent:true,depthTest:false,depthWrite:false});
-    const mesh=new THREE.Mesh(geomFor(d),mat); mesh.renderOrder=999; mesh.position.copy(L); modelRoot.add(mesh);
+    const mesh=new THREE.Mesh(geomFor(d),mat); mesh.renderOrder=999; mesh.position.copy(L); orientFixed(mesh); modelRoot.add(mesh);
     const a={mesh,L:L.clone(),data:d,glow:0,scale:1}; areas.push(a); return a;
   }
   function placeArea(a,hit){ a.L.copy(modelRoot.worldToLocal(hit.point.clone())); a.mesh.position.copy(a.L); save(); }
   function refreshTexture(a){ if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.map=makeTexture(a.data.label,a.data.hw,a.data.hh); a.mesh.material.needsUpdate=true; }
-  function refreshGeom(a){ a.mesh.geometry.dispose(); a.mesh.geometry=geomFor(a.data); a.mesh.position.copy(a.L); }
+  function refreshGeom(a){ a.mesh.geometry.dispose(); a.mesh.geometry=geomFor(a.data); a.mesh.position.copy(a.L); orientFixed(a.mesh); }
   function clearAreas(){ areas.forEach(a=>{a.mesh.geometry.dispose(); if(a.mesh.material.map)a.mesh.material.map.dispose(); a.mesh.material.dispose(); modelRoot&&modelRoot.remove(a.mesh);}); areas=[]; selected=null; hovered=null; }
 
   // ---------- editor ----------
@@ -245,24 +253,16 @@
   $('editBtn').addEventListener('click',()=>{ if(!modelRoot){showErr('Load a .glb first.');return;} setEdit(!editMode); });
 
   // ---------- tooltip + hover/selection animation ----------
-  const tipEl=$('tooltip'); const _wp=new THREE.Vector3(), _center=new THREE.Vector3(), _view=new THREE.Vector3(), _sd=new THREE.Vector3();
-  const _f=new THREE.Vector3(), _r=new THREE.Vector3(), _u=new THREE.Vector3(), _bm=new THREE.Matrix4(), _UP=new THREE.Vector3(0,1,0), _ALT=new THREE.Vector3(0,0,1);
+  const tipEl=$('tooltip'); const _wp=new THREE.Vector3(), _sd=new THREE.Vector3();
   const warm=new THREE.Color('#ffc488'), blue=new THREE.Color('#5b6cff');
   function updateVisual(){
-    modelRoot.getWorldPosition(_center);
-    _view.copy(camera.position).sub(_center).normalize();
     let tipShown=false;
     areas.forEach(a=>{
       a.mesh.getWorldPosition(_wp);
-      // hide a sign only when it's clearly on the far side of the island
-      const facing = _sd.copy(_wp).sub(_center).normalize().dot(_view) > -0.15;
+      // show a sign only while its fixed front faces the camera (hidden when you orbit behind)
+      const facing = FRONT.dot(_sd.copy(camera.position).sub(_wp)) > 0;
       a.faceVisible=facing; a.mesh.visible=facing;
       if(!facing){ if(a===hovered)hovered=null; return; }
-      // billboard: turn the sign to face the camera, kept upright → always readable, never mirrored
-      _f.copy(camera.position).sub(_wp).normalize();
-      const up = Math.abs(_f.y)>0.95 ? _ALT : _UP;
-      _r.crossVectors(up,_f).normalize(); _u.crossVectors(_f,_r).normalize();
-      _bm.makeBasis(_r,_u,_f); a.mesh.quaternion.setFromRotationMatrix(_bm);
       const isHover=(a===hovered && !editMode), isSel=(a===selected && editMode);
       const tScale=isHover?1.07:1.0; a.scale+=(tScale-a.scale)*0.2; a.mesh.scale.setScalar(a.scale);
       const tGlow=isHover?0.4:(isSel?0.55:0); a.glow+=(tGlow-a.glow)*0.2;
